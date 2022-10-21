@@ -28,13 +28,15 @@ def rebuild_df(df):
     mask_start = df == 'Марка'
     start_row = df[mask_start].dropna(axis=0, how='all').index.values
 
+    df_head = df.iloc[0:2].dropna(axis=0, how='all').reset_index(drop=True)
+
     df = df.iloc[start_row[0]:end_row[0] - 3, :].reset_index(drop=True)
     df = df.dropna(axis=0, how='all')
     df = df.dropna(axis=1, how='all')
     df.columns = df.iloc[0]
     df = df.drop(0)
     df = df.drop(1)
-    return df
+    return df, df_head
 
 
 def groupby_df(df):
@@ -72,7 +74,20 @@ def sort_df(df):
     return df
 
 
-def df_to_excel(df, file_name):
+def final_scores(df):
+    total_sum = round(df['Сумма RUB'].sum(), 2)
+    total_weight = round(df['Общий вес'].sum(), 3)
+    cost_delivery = total_weight * 200
+    return total_sum, total_weight, cost_delivery
+
+
+def df_to_excel(df, header, file_name):
+
+    start_row_table = 4
+    # Получаем итоговые значения
+    logger.info('Считаем итоговые значения')
+    total_sum, total_weight, cost_delivery = final_scores(df)
+
     # Сбрасываем встроенный формат заголовков pandas
     pd.io.formats.excel.ExcelFormatter.header_style = None
 
@@ -82,7 +97,8 @@ def df_to_excel(df, file_name):
     workbook = writer.book  # Открываем книгу для записи
 
     # Записываем данные на вкладку sheet_name
-    df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=1)
+    header.to_excel(writer, sheet_name=sheet_name, index=False, header=False, startrow=1)
+    df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row_table)
 
     # Выбираем вкладку для форматирования
     wks1 = writer.sheets[sheet_name]
@@ -100,7 +116,7 @@ def df_to_excel(df, file_name):
     })
     # Форматируем таблицу
     wks1.set_default_row(12)
-    wks1.set_row(1, 20, header_format)
+    wks1.set_row(start_row_table, 20, header_format)
     # wks1.set_column('A:A', 12, name_format)
     # wks1.set_column('B:B', 32, name_format)
     # wks1.set_column('C:H', 10, data_format)
@@ -125,10 +141,39 @@ def df_to_excel(df, file_name):
         'border': True,
         'border_color': '#CCC085'
     })
+    header_format = workbook.add_format({
+        'bold': True,
+        'font_size': 10,
+        'font_name': 'Arial',
+        'valign': 'left'
+    })
+    footer_format = workbook.add_format({
+        'bold': True,
+        'font_size': 10,
+        'font_name': 'Arial',
+        'valign': 'right'
+    })
     wks1.set_column('A:F', 10, name_format)
-    wks1.set_column('F:J', 10, name_format_rigth)
+    wks1.set_column('F4:J100', 10, name_format_rigth)
 
-    # Сохраняем файл
+    end_table = start_row_table + len(df) + 1
+
+    # Записываем итоговые данные
+    wks1.write(f'F{end_table + 2}', 'Итого:', None)
+    wks1.write(f'G{end_table + 2}', total_sum, None)
+    wks1.write(f'F{end_table + 4}', 'Итого за вес:', None)
+    wks1.write(f'G{end_table + 4}', cost_delivery, None)
+    wks1.write(f'H{end_table + 2}', 'Итого вес:', None)
+    wks1.write(f'I{end_table + 2}', total_weight, None)
+
+    # Изменяем формат строк заголовка
+    for i in range(0, start_row_table):
+        wks1.set_row(i, 16, header_format)
+    # Изменяем формат строк подвала таблицы
+    for i in range(end_table, end_table + 200):
+        wks1.set_row(i, 16, footer_format)
+
+# Сохраняем файл
     writer.save()
     return
 
@@ -140,17 +185,16 @@ def run():
     logger.info('Считываем файл в память')
     df = read_file(filename)
     logger.info('Перестраиваем таблицу')
-    df = rebuild_df(df)
+    df, df_header = rebuild_df(df)
     logger.info('Группируем значения по Артикулу')
     df = groupby_df(df)
     logger.info('Подготавливаем таблицу для записи')
     df = sort_df(df)
     logger.info('Сохраняем в файл')
     new_filename = f'_{filename[:-4]}_.xlsx'
-    df_to_excel(df, new_filename)
+    df_to_excel(df, df_header, new_filename)
     logger.info('Программа завершила свою работу')
 
 
 if __name__ == '__main__':
     run()
-    # run1()
