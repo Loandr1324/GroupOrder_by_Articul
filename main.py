@@ -6,7 +6,7 @@ from loguru import logger
 
 def search_file():
     """
-    Ищем первый файл с расширением 'xls'
+    Ищемп первый файл с расширением 'xls'
 
     :return: str с наименованием файла
     """
@@ -76,11 +76,11 @@ def groupby_df(df):
 def sort_df(df):
     """Переставляем местами колонки
 
-    :param: DataFrame с наименование колонок Марка', 'Номер', 'Reference', 'Описание',
+    :param DataFrame с наименование колонок Марка', 'Номер', 'Reference', 'Описание',
                  'Кол-во', 'Цена RUB', 'Сумма RUB', 'Вес детали', 'Общий вес' так же может быть колонка
                  с наименованием 'Замена'
 
-    :return: DataFrame с отсортированными колонками"""
+    :return DataFrame с отсортированными колонками"""
     if 'Замена' in df.columns:
         df = df[['Замена', 'Марка', 'Номер', 'Reference', 'Описание',
                  'Кол-во', 'Цена RUB', 'Сумма RUB', 'Вес детали', 'Общий вес']]
@@ -93,9 +93,9 @@ def sort_df(df):
 def final_scores(df):
     """Рассчитываем итоговые значения по таблице
 
-    :param: DataFrame с колонками 'Сумма RUB' 'Общий вес'
+    :param DataFrame с колонками 'Сумма RUB' 'Общий вес'
 
-    :return: (total_sum , total_weight, cost_delivery)
+    :return (total_sum , total_weight, cost_delivery)
     """
     total_sum = round(df['Сумма RUB'].sum(), 2)
     total_weight = round(df['Общий вес'].sum(), 3)
@@ -106,7 +106,18 @@ def final_scores(df):
 def format_exel():
     """Задём форматы для таблицы эксель
 
-    :return: header_format, name_format, name_format_rigth, header_format, footer_format"""
+    :return header_format, name_format, name_format_rigth, header_format, footer_format"""
+    header_format = workbook.add_format({
+        'font_name': 'Arial',
+        'font_size': '7',
+        'align': 'center',
+        'valign': 'top',
+        'text_wrap': True,
+        'bold': True,
+        'bg_color': '#F4ECC5',
+        'border': True,
+        'border_color': '#CCC085'
+    })
     name_format = workbook.add_format({
         'font_name': 'Arial',
         'font_size': '8',
@@ -139,7 +150,7 @@ def format_exel():
         'font_name': 'Arial',
         'valign': 'right'
     })
-    return name_format, name_format_rigth, header_format, footer_format
+    return header_format, name_format, name_format_rigth, header_format, footer_format
 
 
 def df_to_excel(df, header, file_name):
@@ -170,7 +181,7 @@ def df_to_excel(df, header, file_name):
     df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row_table)
 
     # Получаем форматы
-    table_format, table_format_rigth, header_format, footer_format = format_exel()
+    header_format, table_format, table_format_rigth, header_format, footer_format  = format_exel()
 
     # Выбираем вкладку для форматирования
     wks1 = writer.sheets[sheet_name]
