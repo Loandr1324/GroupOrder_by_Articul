@@ -103,11 +103,11 @@ def final_scores(df):
     return total_sum, total_weight, cost_delivery
 
 
-def format_exel():
+def format_exel(workbook):
     """Задём форматы для таблицы эксель
 
     :return header_format, name_format, name_format_rigth, header_format, footer_format"""
-    header_format = workbook.add_format({
+    header_format1 = workbook.add_format({
         'font_name': 'Arial',
         'font_size': '7',
         'align': 'center',
@@ -138,7 +138,7 @@ def format_exel():
         'border': True,
         'border_color': '#CCC085'
     })
-    header_format = workbook.add_format({
+    header_format2 = workbook.add_format({
         'bold': True,
         'font_size': 10,
         'font_name': 'Arial',
@@ -150,7 +150,7 @@ def format_exel():
         'font_name': 'Arial',
         'valign': 'right'
     })
-    return header_format, name_format, name_format_rigth, header_format, footer_format
+    return header_format1, name_format, name_format_rigth, header_format2, footer_format
 
 
 def df_to_excel(df, header, file_name):
@@ -181,14 +181,14 @@ def df_to_excel(df, header, file_name):
     df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row_table)
 
     # Получаем форматы
-    header_format, table_format, table_format_rigth, header_format, footer_format  = format_exel()
+    header_format1, table_format, table_format_rigth, header_format2, footer_format  = format_exel(workbook)
 
     # Выбираем вкладку для форматирования
     wks1 = writer.sheets[sheet_name]
 
     # Форматируем таблицу
     wks1.set_default_row(12) # Высота строк по умолчанию
-    wks1.set_row(start_row_table, 20, header_format) # Формат и высота шапки таблицы
+    wks1.set_row(start_row_table, 20, header_format1) # Формат и высота шапки таблицы
 
     # Формат всех колонок
     wks1.set_column('A:E', 10, table_format)
@@ -204,7 +204,7 @@ def df_to_excel(df, header, file_name):
 
     # Изменяем формат строк заголовка
     for i in range(0, start_row_table):
-        wks1.set_row(i, 16, header_format)
+        wks1.set_row(i, 16, header_format2)
     for i in range(end_row_table, end_row_table + 50):
         wks1.set_row(i, 16, footer_format)
 
