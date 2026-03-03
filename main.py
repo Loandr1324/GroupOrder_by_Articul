@@ -11,10 +11,10 @@ def search_file():
     :return: str с наименованием файла
     """
     for item in os.listdir():
-        if item.endswith('xls'):
-            logger.info(f"Нашёл файл с расширением 'xls': {item}")
+        if item.endswith('xls') or item.endswith('xlsx'):
+            logger.info(f"Нашёл файл с расширением 'xls' или 'xlsx': {item}")
             return item
-    logger.error(f"Не смог найти файл с расширением 'xls'")
+    logger.error(f"Не смог найти файл с расширением 'xls' или 'xlsx'")
 
 
 def rebuild_df(df):
@@ -31,6 +31,8 @@ def rebuild_df(df):
     start_row = df[mask_start].dropna(axis=0, how='all').index.values
 
     df_head = df.iloc[0:2].dropna(axis=0, how='all').reset_index(drop=True)
+    df_head[df_head.columns[0]] = df_head[df_head.columns[5]]
+    df_head[df_head.columns[5]] = None
 
     df = df.iloc[start_row[0]:end_row[0] - 3, :].reset_index(drop=True)
     df = df.dropna(axis=0, how='all')
@@ -93,13 +95,17 @@ def sort_df(df):
 def final_scores(df):
     """Рассчитываем итоговые значения по таблице
 
-    :param DataFrame с колонками 'Сумма RUB' 'Общий вес'
+    :param df: DataFrame с колонками 'Сумма RUB' 'Общий вес'
 
     :return (total_sum , total_weight, cost_delivery)
     """
+
+    price_per_kilogram = input('Укажите стоимость доставки за кг (по умолчанию 220р.):')
+    price_per_kilogram = int(price_per_kilogram) if price_per_kilogram else 220
+
     total_sum = round(df['Сумма RUB'].sum(), 2)
     total_weight = round(df['Общий вес'].sum(), 3)
-    cost_delivery = total_weight * 200
+    cost_delivery = total_weight * price_per_kilogram
     return total_sum, total_weight, cost_delivery
 
 
@@ -153,12 +159,10 @@ def format_exel(workbook):
     return header_format1, name_format, name_format_rigth, header_format2, footer_format
 
 
-def df_to_excel(df, header, file_name):
+def df_to_excel(df: pd.DataFrame, header: pd.DataFrame, file_name: str) -> None:
     """Создаём и форматируем файл эксель
-
-    :param DataFrame - таблица с данными, DataFrame - с заголовком, filename -> str - наименование файла
-
-    :return None"""
+    df - таблица с данными, header - таблица с заголовком, filename -> str - наименование файла
+    """
 
     # Определяем номер строки начала и конца таблицы
     start_row_table = 4
@@ -168,48 +172,47 @@ def df_to_excel(df, header, file_name):
     logger.info('Считаем итоговые значения')
     total_sum, total_weight, cost_delivery = final_scores(df)
 
-    # Сбрасываем встроенный формат заголовков pandas
-    pd.io.formats.excel.ExcelFormatter.header_style = None
-
     # Открываем файл для записи
-    writer = pd.ExcelWriter(file_name, engine='xlsxwriter')
-    sheet_name = 'Sheet1'  # Задаём имя вкладки
-    workbook = writer.book  # Открываем книгу для записи
+    with pd.ExcelWriter(file_name, engine='xlsxwriter') as writer:
+        sheet_name = 'Sheet1'  # Задаём имя вкладки
+        workbook = writer.book  # Открываем книгу для записи
 
-    # Записываем данные на вкладку sheet_name
-    header.to_excel(writer, sheet_name=sheet_name, index=False, header=False, startrow=1)
-    df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row_table)
+        # Записываем данные на вкладку sheet_name
+        header.to_excel(writer, sheet_name=sheet_name, index=False, header=False, startrow=1)
+        df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row_table)
 
-    # Получаем форматы
-    header_format1, table_format, table_format_rigth, header_format2, footer_format  = format_exel(workbook)
+        # Получаем форматы
+        header_format1, table_format, table_format_rigth, header_format2, footer_format = format_exel(workbook)
 
-    # Выбираем вкладку для форматирования
-    wks1 = writer.sheets[sheet_name]
+        # Выбираем вкладку для форматирования
+        wks1 = writer.sheets[sheet_name]
 
-    # Форматируем таблицу
-    wks1.set_default_row(12) # Высота строк по умолчанию
-    wks1.set_row(start_row_table, 20, header_format1) # Формат и высота шапки таблицы
+        # Перезаписываем заголовок таблицы с их форматированием
+        for col_num, value in enumerate(df.columns.values):
+            wks1.write(start_row_table, col_num, value, header_format1)
 
-    # Формат всех колонок
-    wks1.set_column('A:E', 10, table_format)
-    wks1.set_column('F:J', 10, table_format_rigth)
+        # Форматируем таблицу
+        wks1.set_default_row(12)  # Высота строк по умолчанию
+        wks1.set_row(start_row_table, 20, header_format1)  # Формат и высота шапки таблицы
 
-    # Записываем итоговые данные
-    wks1.write(f'F{end_row_table + 2}', 'Итого:', None)
-    wks1.write(f'G{end_row_table + 2}', total_sum, None)
-    wks1.write(f'F{end_row_table + 4}', 'Итого за вес:', None)
-    wks1.write(f'G{end_row_table + 4}', cost_delivery, None)
-    wks1.write(f'H{end_row_table + 2}', 'Итого вес:', None)
-    wks1.write(f'I{end_row_table + 2}', total_weight, None)
+        # Формат всех колонок
+        wks1.set_column('A:E', 10, table_format)
+        wks1.set_column('F:J', 10, table_format_rigth)
 
-    # Изменяем формат строк заголовка
-    for i in range(0, start_row_table):
-        wks1.set_row(i, 16, header_format2)
-    for i in range(end_row_table, end_row_table + 50):
-        wks1.set_row(i, 16, footer_format)
+        # Записываем итоговые данные
+        wks1.write(f'F{end_row_table + 2}', 'Итого:', None)
+        wks1.write(f'G{end_row_table + 2}', total_sum, None)
+        wks1.write(f'F{end_row_table + 4}', 'Итого за вес:', None)
+        wks1.write(f'G{end_row_table + 4}', cost_delivery, None)
+        wks1.write(f'H{end_row_table + 2}', 'Итого вес:', None)
+        wks1.write(f'I{end_row_table + 2}', total_weight, None)
 
-    # Сохраняем файл
-    writer.save()
+        # Изменяем формат строк заголовка
+        for i in range(0, start_row_table):
+            wks1.set_row(i, 16, header_format2)
+        for i in range(end_row_table, end_row_table + 50):
+            wks1.set_row(i, 16, footer_format)
+
     return
 
 
